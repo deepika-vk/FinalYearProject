@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render,redirect
 from django.contrib.auth import authenticate , login , logout
 from django.contrib.auth.models import User
 from accounts.models import profile
@@ -27,11 +27,11 @@ def log_in(request):
     else:
         return render(request,'login.html')
 def log_out(request):
-     if request.user.is_authenticated:
+    if request.user.is_authenticated:
         logout(request)
         context={'greenalert':"logout successful"}
         return render(request,'home.html',context)
-     return render(request,'404.html')    
+    return render(request,'404.html')
 def register_page(request):
     if request.user.is_authenticated:
             return render(request,'404.html')
@@ -67,4 +67,86 @@ def register_page(request):
         except Exception as e:
             context={'redalert':'Something went wrong, try again'}
             return render(request,'register.html',context)
-    return render(request,'register.html')   
+    return render(request,'register.html')
+
+
+def set_password(request,token):
+    t=token.split("@")
+    if len(t)!=2:
+        return render(request,'404.html')
+    user,token=t[0],t[1]
+    if token=="Not Available":
+        return render(request,'404.html')
+    user_obj=profile.objects.filter(user=user)
+    if not user_obj.existrts():
+        return render(request,'404.html')
+    if request.method=='POST':
+        user_obj=user_obj[0]
+        if user_obj.token==token:
+            if User.objects.filter(username=user).exists():
+                t=User.objects.get(username=user)
+                t.set_password(request.POST.get('password'))
+                t.save()
+                user_obj.token="Not Available"
+                user_obj.save()
+                context={'greenalert':"password changed successfully"}
+                return render(request,'set_password.html',context)
+            else:
+                t=User.objects.create(username=user)
+                t.set_password(request.POST.get('password'))
+                t.save()
+                user_obj.token="Not Available"
+                user_obj.email_verified=True
+                user_obj.friends[user]=1
+                user_obj.save()
+                context={'greenalert':"Account created successfully"}
+                return render(request,'set_password.html',context)
+        else:
+            return render(request,'404.html')
+    else:
+        user_obj=user_obj[0]
+        if user_obj.token==token:
+            return render(request,'set_password.html')
+        else:
+            return render(request,'404.html')
+        
+def send_verification_mail(request,email):
+    user_obj = profile.objects.filter(email = email)[0]
+    user_obj.token = str(uuid.uuid4())
+    user_obj.save()
+    scheme = request.scheme
+    domain_name = request.get_host()
+    url = f"{scheme}://{domain_name}"
+    url+="/password/"+user_obj.user+"@"+user_obj.token
+    send_mail(
+        'Verify your codetrack account',
+        'Click the link to verify your codetrack account and set password  \n'+url+'\n ',
+        'codetrack.co@gmail.com',
+        [email],
+        fail_silently=False,
+    )
+def forget_password(request):
+    if request.method=="POST":
+        email=request.POST['email']
+        if profile.objects.filter(email=email).exists():
+            send_verification_mail(request,email)
+            context={'greenalert':"reset mail  sent"}
+            return render(request,'forget_password.html',context)
+        else:
+            context={'redalert':"invalid email"}
+            return render(request,'forget_password.html',context)
+    else:
+        return render(request,'forget_password.html')
+    
+def forget_username(request):
+    if request.method=="POST":
+        email=request.POST['email']
+        if profile.objects.filter(email=email).exists():
+            username=profile.objects.filter(email=email)[0].user
+            context={'greenalert':"Username : "+username}
+            return render(request,'forget_username.html',context)
+        else:
+            context={'redalert':"invalid email"}
+            return render(request,'forget_username.html',context)
+    else:
+        return render(request,'forget_username.html')

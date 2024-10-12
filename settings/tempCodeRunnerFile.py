@@ -7,6 +7,7 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate , login , logout
 from django.contrib.auth.models import User
 import uuid
+
 def settings(request):
     if not request.user.is_authenticated:
         return render(request,'404.html')
@@ -74,7 +75,6 @@ def leetcode(user_name):
     #headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'}
     url="https://leetcode.com/"+str(user_name)
     r=get(url)
-    #return False
     soup=BeautifulSoup(r.text,'html.parser')
     r=soup.find_all("script")[0]
     if len(r)==0:
@@ -123,7 +123,7 @@ def codechef_check(request):
     context={'username':user_obj.codechef,'token':user_obj.codechef_token}
     return render(request,'codechef_check.html',context)
 def codechef(user_name):
-    url="https://codechef-api.vercel.app/"+str(user_name)
+    url="https://codechef-api.vercel.app"+str(user_name)
     r=get(url)
     if r.status_code == 200:
         j=json.loads(r.text)
